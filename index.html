@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LinguaLive — FR ⇄ EN</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#f6f7fb;color:#111}
+    .wrap{max-width:960px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.06);padding:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    button,input,select,textarea{font:inherit} button{padding:10px 14px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+    input,select,textarea{padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+    .tabs{display:flex;gap:8px;margin:10px 0}
+    .tab{padding:8px 12px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
+    .tab.active{box-shadow:0 1px 2px rgba(0,0,0,.08);background:#fefefe}
+    .bubble{padding:10px 12px;border-radius:12px;margin:6px 0;max-width:80%}
+    .me{background:#eaf2ff;align-self:flex-end}
+    .other{background:#f1f5f9;align-self:flex-start}
+    .muted{color:#6b7280;font-size:12px}
+    .grid{display:grid;gap:10px}
+    .two{grid-template-columns:1fr;gap:10px}
+    @media(min-width:800px){.two{grid-template-columns:1fr 1fr}}
+    .status-dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;background:#bbb}
+    .ok{background:#10b981}.bad{background:#ef4444}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>LinguaLive (MVP statique)</h1>
+    <p class="muted">Parlez. Écoutez. Comprenez. — FR ⇄ EN (texte, audio, image OCR). <br>
+      <b>Astuce :</b> ouvre ce site dans 2 onglets pour simuler 2 personnes.</p>
+
+    <!-- Statut -->
+    <div class="card" id="statusCard">
+      <b>Statut</b> — LibreTranslate :
+      <span class="status-dot" id="ltDot"></span><span id="ltTxt">check...</span>
+    </div>
+
+    <!-- Onglets -->
+    <div class="tabs">
+      <button class="tab active" id="tabChat">Messages</button>
+      <button class="tab" id="tabText">Texte</button>
+      <button class="tab" id="tabAudio">Audio live</button>
+      <button class="tab" id="tabOCR">Image (OCR)</button>
+    </div>
+
+    <!-- CHAT -->
+    <div class="card" id="viewChat">
+      <div class="row">
+        <input id="room" value="room1" aria-label="room" />
+        <input id="name" value="Moi" aria-label="name" />
+        <select id="myLang">
+          <option value="fr" selected>Français (FR)</option>
+          <option value="en">English (EN)</option>
+        </select>
+        <button id="reset">Vider</button>
+      </div>
+      <div id="chatArea" style="height:260px;overflow:auto;display:flex;flex-direction:column;margin-top:8px"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="msg" placeholder="Écrire un message..." style="flex:1" />
+        <button id="send">Envoyer</button>
+      </div>
+      <p class="muted">Ouvre le site dans un 2e onglet → choisis une autre langue. Les messages reçus sont traduits automatiquement.</p>
+    </div>
+
+    <!-- TEXTE -->
+    <div class="card" id="viewText" style="display:none">
+      <div class="row">
+        <select id="from">
+          <option value="auto" selected>Auto</option>
+          <option value="fr">FR</option>
+          <option value="en">EN</option>
+        </select>
+        →
+        <select id="to">
+          <option value="fr">FR</option>
+          <option value="en" selected>EN</option>
+        </select>
+        <button id="go">Traduire</button>
+      </div>
+      <div class="two grid">
+        <textarea id="in" rows="6">Bonjour !</textarea>
+        <div class="card" id="out" style="min-height:4rem"></div>
+      </div>
+    </div>
+
+    <!-- AUDIO -->
+    <div class="card" id="viewAudio" style="display:none">
+      <div class="row">
+        <label>Langue micro</label>
+        <select id="micLang">
+          <option value="fr-FR" selected>FR (fr-FR)</option>
+          <option value="en-US">EN (en-US)</option>
+        </select>
+        <label>→ vers</label>
+        <select id="target">
+          <option value="fr">FR</option>
+          <option value="en" selected>EN</option>
+        </select>
+        <button id="start">🎙️ Démarrer</button>
+        <button id="stop">⏹️ Stop</button>
+      </div>
+      <div class="two grid">
+        <div class="card">
+          <div class="muted">Transcription</div>
+          <div id="transcript"></div>
+        </div>
+        <div class="card">
+          <div class="muted">Traduction</div>
+          <div id="translated"></div>
+        </div>
+      </div>
+      <p class="muted">Active le micro. Chrome/Edge recommandés sur iPhone pour l’audio live.</p>
+    </div>
+
+    <!-- OCR -->
+    <div class="card" id="viewOCR" style="display:none">
+      <div class="row">
+        <input type="file" id="file" accept="image/*" />
+        <select id="ocrTarget">
+          <option value="fr">FR</option>
+          <option value="en" selected>EN</option>
+        </select>
+      </div>
+      <div class="two grid">
+        <div class="card">
+          <div class="muted">Texte extrait</div>
+          <pre id="ocrText" style="white-space:pre-wrap"></pre>
+        </div>
+        <div class="card">
+          <div class="muted">Traduction</div>
+          <pre id="ocrOut" style="white-space:pre-wrap"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tesseract (OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+    // ====== Config ======
+    const LT_URL = 'https://libretranslate.de'; // API publique (gratuite). Si ça rame, on changera plus tard.
+
+    // ====== Statut LibreTranslate ======
+    async function checkLT(){
+      try{
+        const r = await fetch(LT_URL + '/languages');
+        const ok = r.ok;
+        document.getElementById('ltDot').classList.add(ok?'ok':'bad');
+        document.getElementById('ltTxt').textContent = ok?'up':'down';
+      }catch(e){
+        document.getElementById('ltDot').classList.add('bad');
+        document.getElementById('ltTxt').textContent = 'down';
+      }
+    }
+    checkLT();
+
+    // ====== Tabs ======
+    const tabButtons = {
+      chat: document.getElementById('tabChat'),
+      text: document.getElementById('tabText'),
+      audio: document.getElementById('tabAudio'),
+      ocr: document.getElementById('tabOCR'),
+    };
+    const views = {
+      chat: document.getElementById('viewChat'),
+      text: document.getElementById('viewText'),
+      audio: document.getElementById('viewAudio'),
+      ocr: document.getElementById('viewOCR'),
+    };
+    function show(k){
+      for(const key in views){ views[key].style.display = (key===k)?'block':'none'; }
+      for(const key in tabButtons){
+        tabButtons[key].classList.toggle('active', key===k);
+      }
+    }
+    tabButtons.chat.onclick = ()=>show('chat');
+    tabButtons.text.onclick = ()=>show('text');
+    tabButtons.audio.onclick = ()=>show('audio');
+    tabButtons.ocr.onclick = ()=>show('ocr');
+
+    // ====== Traduction util ======
+    async function translate(text, to='en', from='auto'){
+      try{
+        const r = await fetch(LT_URL + '/translate', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ q:text, source: from==='auto'?'auto':from, target: to, format:'text' })
+        });
+        const d = await r.json();
+        return d.translatedText || text;
+      }catch(e){ return text; }
+    }
+
+    // ====== CHAT (2 onglets) ======
+    const roomEl = document.getElementById('room');
+    const nameEl = document.getElementById('name');
+    const myLangEl = document.getElementById('myLang');
+    const chatArea = document.getElementById('chatArea');
+    const msgEl = document.getElementById('msg');
+    const sendBtn = document.getElementById('send');
+    const resetBtn = document.getElementById('reset');
+
+    // BroadcastChannel pour simuler une "salle" locale entre onglets
+    let channel = new BroadcastChannel('lingualive');
+    function join(){
+      channel.close();
+      channel = new BroadcastChannel('lingualive');
+      channel.onmessage = async (ev)=>{
+        const {room, author, text, ts} = ev.data||{};
+        if(room !== roomEl.value) return;
+        const out = await translate(text, myLangEl.value);
+        addMsg(author, text, out, ts, author===nameEl.value);
+      }
+    }
+    join();
+
+    function addMsg(author, original, translated, ts, isMe){
+      const wrap = document.createElement('div');
+      wrap.style.display='flex';
+      wrap.style.flexDirection='column';
+      wrap.style.alignItems = isMe?'flex-end':'flex-start';
+      const b = document.createElement('div');
+      b.className = 'bubble '+(isMe?'me':'other');
+      b.textContent = translated || original;
+      const small = document.createElement('div'); small.className='muted';
+      small.textContent = (new Date(ts)).toLocaleTimeString() + ' — ' + author + ' | Original: ' + original;
+      wrap.appendChild(b); wrap.appendChild(small);
+      chatArea.appendChild(wrap);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    sendBtn.onclick = ()=>{
+      const text = msgEl.value.trim();
+      if(!text) return;
+      const ts = Date.now();
+      // moi je l'affiche direct
+      addMsg(nameEl.value, text, null, ts, true);
+      // j'envoie aux autres onglets
+      channel.postMessage({ room: roomEl.value, author: nameEl.value, text, ts });
+      msgEl.value='';
+    };
+    resetBtn.onclick = ()=>{ chatArea.innerHTML=''; };
+
+    roomEl.onchange = join; myLangEl.onchange = ()=>{}; // retraduction future possible
+
+    // ====== TEXTE ======
+    document.getElementById('go').onclick = async ()=>{
+      const text = document.getElementById('in').value;
+      const to = document.getElementById('to').value;
+      const from = document.getElementById('from').value;
+      const out = await translate(text, to, from);
+      document.getElementById('out').textContent = out;
+    };
+
+    // ====== AUDIO (Web Speech + TTS) ======
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const micLang = document.getElementById('micLang');
+    const target = document.getElementById('target');
+    const transcriptEl = document.getElementById('transcript');
+    const translatedEl = document.getElementById('translated');
+    let rec = null;
+    startBtn.onclick = ()=>{
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!SR){ alert('Reconnaissance vocale non supportée par ce navigateur. Essaie Chrome.'); return; }
+      rec = new SR();
+      rec.lang = micLang.value;
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = async (e)=>{
+        let finals = '';
+        for(let i=e.resultIndex;i<e.results.length;i++){
+          const r=e.results[i]; if(r.isFinal) finals += r[0].transcript + ' ';
+        }
+        if(finals){
+          transcriptEl.textContent += ' '+finals;
+          const out = await translate(finals, target.value);
+          translatedEl.textContent += ' '+out;
+          const u = new SpeechSynthesisUtterance(out);
+          u.lang = target.value==='fr'?'fr-FR':'en-US';
+          speechSynthesis.speak(u);
+        }
+      };
+      rec.onend = ()=>{};
+      rec.start();
+    };
+    stopBtn.onclick = ()=>{ try{ rec && rec.stop(); }catch{} };
+
+    // ====== OCR (Tesseract) ======
+    const fileEl = document.getElementById('file');
+    const ocrText = document.getElementById('ocrText');
+    const ocrOut = document.getElementById('ocrOut');
+    const ocrTarget = document.getElementById('ocrTarget');
+    fileEl.onchange = async (e)=>{
+      const f = e.target.files[0]; if(!f) return;
+      ocrText.textContent = 'Analyse en cours…';
+      const res = await Tesseract.recognize(f, 'eng+fra');
+      ocrText.textContent = res.data.text || '';
+      const out = await translate(res.data.text || '', ocrTarget.value);
+      ocrOut.textContent = out;
+    };
+  </script>
+</body>
+</html>
