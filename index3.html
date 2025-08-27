@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LinguaLive — Test FR ⇄ EN (fiable)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#f6f7fb;color:#111}
+    .wrap{max-width:720px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.06);padding:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    textarea{width:100%;min-height:120px;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+    select,button{padding:10px;border:1px solid #e5e7eb;border-radius:10px;background:#fff}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>LinguaLive — Test FR ⇄ EN</h1>
+    <div class="card">
+      <div class="row">
+        <select id="dir">
+          <option value="fr|en" selected>FR → EN</option>
+          <option value="en|fr">EN → FR</option>
+        </select>
+        <button id="go">Traduire</button>
+        <button id="probe">Test rapide</button>
+      </div>
+      <p class="muted" id="provider">Fournisseur : (—)</p>
+      <textarea id="in">Bonjour, comment ça va ?</textarea>
+      <p style="margin:.5rem 0">Résultat :</p>
+      <div id="out" class="card" style="min-height:2.5rem"></div>
+    </div>
+  </div>
+
+  <script>
+    // 1) Instances LibreTranslate (on essaie d'abord ça)
+    const LT_LIST = [
+      'https://libretranslate.de',
+      'https://translate.mentality.rip',
+      'https://lt.vern.cc',
+      'https://translate.argosopentech.com'
+    ];
+
+    async function ltHealth(base){
+      try{ const r = await fetch(base + '/languages', { method:'GET' }); return r.ok; }
+      catch{ return false; }
+    }
+
+    async function pickLT(){
+      // essaie en parallèle (plus rapide)
+      const checks = await Promise.allSettled(LT_LIST.map(ltHealth));
+      for(let i=0;i<checks.length;i++){
+        if(checks[i].status === 'fulfilled' && checks[i].value) return LT_LIST[i];
+      }
+      return null;
+    }
+
+    async function translateViaLT(text, from, to){
+      const base = await pickLT();
+      if(!base) return null;
+      const t0 = performance.now();
+      try{
+        const r = await fetch(base + '/translate', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ q:text, source: from==='auto'?'auto':from, target: to, format:'text' })
+        });
+        if(!r.ok) return null;
+        const d = await r.json();
+        const ms = Math.round(performance.now()-t0);
+        return { text: d.translatedText, provider: 'LibreTranslate ('+ new URL(base).host +', '+ms+'ms)' };
+      }catch{ return null; }
+    }
+
+    // 2) Fallback MyMemory (gratuit, mais parfois renvoie l'original)
+    async function translateViaMyMemory(text, from, to){
+      const pair = (from==='auto') ? (to==='fr'?'en|fr':'fr|en') : (from+'|'+to);
+      const t0 = performance.now();
+      try{
+        const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + pair);
+        const d = await r.json();
+        const out = d?.responseData?.translatedText;
+        const ms = Math.round(performance.now()-t0);
+        if(!out) return null;
+        return { text: out, provider: 'MyMemory ('+ms+'ms)' };
+      }catch{ return null; }
+    }
+
+    async function translateSmart(text, pair){
+      const [from, to] = pair.split('|');
+      // essai 1: LibreTranslate
+      let res = await translateViaLT(text, from, to);
+      if(res && res.text && res.text.trim().toLowerCase() !== text.trim().toLowerCase()) return res;
+
+      // essai 2: MyMemory
+      res = await translateViaMyMemory(text, from, to);
+      if(res && res.text) return res;
+
+      // échec → renvoie l'original avec mention
+      return { text, provider: '— (aucune API dispo)' };
+    }
+
+    document.getElementById('go').onclick = async () => {
+      const q = document.getElementById('in').value.trim();
+      const pair = document.getElementById('dir').value;
+      document.getElementById('out').textContent = 'Traduction en cours…';
+      const res = await translateSmart(q, pair);
+      document.getElementById('out').textContent = res.text;
+      document.getElementById('provider').textContent = 'Fournisseur : ' + res.provider;
+    };
+
+    // Bouton test rapide (utilise une phrase connue)
+    document.getElementById('probe').onclick = async () => {
+      const pair = document.getElementById('dir').value;
+      const sample = pair==='fr|en' ? 'bonjour' : 'hello';
+      document.getElementById('in').value = sample;
+      document.getElementById('go').click();
+    };
+  </script>
+</body>
+</html>
