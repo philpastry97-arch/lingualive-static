@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LinguaLive — FR ⇄ EN</title>
+</head>
+<body>
+  <h1>LinguaLive (index2.html)</h1>
+  <p>Version corrigée avec traduction qui marche.</p>
+
+  <textarea id="in" rows="4" cols="40">Bonjour</textarea>
+  <button onclick="doTranslate()">Traduire en anglais</button>
+  <div id="out"></div>
+
+  <script>
+    const LT_INSTANCES = [
+      'https://libretranslate.de',
+      'https://translate.mentality.rip',
+      'https://lt.vern.cc',
+      'https://translate.argosopentech.com'
+    ];
+    let SELECTED_LT = null;
+
+    async function pickLT(){
+      for (const base of LT_INSTANCES){
+        try {
+          const r = await fetch(base + '/languages');
+          if(r.ok) return base;
+        }catch{}
+      }
+      return null;
+    }
+
+    async function translate(text, to='en', from='auto'){
+      if(!SELECTED_LT) SELECTED_LT = await pickLT();
+      if(SELECTED_LT){
+        try{
+          const r = await fetch(SELECTED_LT + '/translate',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({q:text,source:from==='auto'?'auto':from,target:to,format:'text'})
+          });
+          if(r.ok){ const d=await r.json(); return d.translatedText; }
+        }catch{}
+      }
+      // fallback gratuit
+      try{
+        const rr=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair=fr|en');
+        const dd=await rr.json();
+        return dd?.responseData?.translatedText || text;
+      }catch{}
+      return text;
+    }
+
+    async function doTranslate(){
+      const text=document.getElementById('in').value;
+      const out=await translate(text,'en','fr');
+      document.getElementById('out').innerText=out;
+    }
+  </script>
+</body>
+</html>
